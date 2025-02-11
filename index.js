@@ -65,20 +65,29 @@ app.post('/api/shorturl', (req, res) => {
 
 // Ruta para manejar la redirección
 app.get('/api/shorturl/:shorturl', (req, res) => {
-  const shorturl = req.params.shorturl;
+  const shorturl = Number(req.params.shorturl);
 
-  // Buscar en la base de datos la URL original usando el id
-  ShortUrl.findOne({ short_url: shorturl }).then(shortUrl => {
-    if (shortUrl) {
-      // Redirigir al cliente a la URL original
-      res.redirect(shortUrl.original_url);
-    } else {
-      // Si no se encuentra la URL, devolver un error
-      res.status(404).json({ error: 'No such URL' });
-    }
-  }).catch(error => {
-    res.status(500).json({ error: 'Server error' });
-  });
+  if (isNaN(shorturl)) {
+    return res.status(400).json({ error: 'Invalid short URL' });
+  }
+
+  ShortUrl.findOne({ short_url: shorturl })
+    .then(shortUrl => {
+      if (shortUrl) {
+        // Verificar que la URL tenga http:// o https://
+        const originalUrl = shortUrl.original_url.startsWith('http')
+          ? shortUrl.original_url
+          : `http://${shortUrl.original_url}`;
+
+        res.redirect(originalUrl);
+      } else {
+        res.status(404).json({ error: 'No such URL' });
+      }
+    })
+    .catch(error => {
+      console.error('Database error:', error);
+      res.status(500).json({ error: 'Server error' });
+    });
 });
 
 app.listen(port, function() {
